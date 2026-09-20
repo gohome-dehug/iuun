@@ -19,7 +19,7 @@
     }
 
     body {
-      background-color: #008080; /* 레트로 윈도우 배경색 */
+      background-color: #008080;
       padding: 20px;
       display: flex;
       flex-direction: column;
@@ -57,7 +57,7 @@
       border-bottom-color: #fff;
     }
 
-    /* 메인 윈도우 컨테이너 */
+    /* 메인 윈도우 창 */
     .window {
       background: #c0c0c0;
       border: 2px solid #fff;
@@ -83,16 +83,16 @@
       padding: 20px;
     }
 
-    /* 멀티페이지 제어용 섹션 스타일 */
+    /* ★ 페이지 숨김 제어 (강제 적용) ★ */
     .section {
-      display: none; /* 기본적으로 숨김 */
+      display: none !important; /* 다른 스타일 무시하고 일단 전부 숨김 */
     }
 
     .section.active {
-      display: block; /* 활성화된 섹션만 표시 */
+      display: block !important; /* active 클래스가 붙은 딱 하나만 표시 */
     }
 
-    /* 버튼 및 폼 스타일 */
+    /* 기타 기본 요소 스타일 */
     .retro-btn {
       padding: 6px 12px;
       background: #c0c0c0;
@@ -134,7 +134,7 @@
 </head>
 <body>
 
-  <!-- 네비게이션 (해시 링크 사용) -->
+  <!-- 네비게이션 -->
   <nav class="navbar">
     <a href="#home">Home</a>
     <a href="#profile">Profile</a>
@@ -147,17 +147,17 @@
   <!-- 메인 윈도우 창 -->
   <main class="window">
     <div class="title-bar">
-      <span id="window-title">C:\WINDOWS\SYSTEM32\APP.EXE</span>
+      <span id="window-title">C:\WINDOWS\SYSTEM32\HOME.EXE</span>
       <span>[X]</span>
     </div>
 
     <div class="window-body">
       
-      <!-- HOME SECTION -->
-      <section id="home" class="section">
+      <!-- HOME SECTION (처음 보여줄 페이지이므로 active 기본 부여) -->
+      <section id="home" class="section active">
         <h1>환영합니다!</h1>
         <p style="margin-top: 10px;">단일 파일 안에서 작동하는 멀티페이지 포트폴리오입니다.</p>
-        <p>상단 메뉴를 누르거나 뒤로가기/앞으로가기 버튼을 사용할 수 있습니다.</p>
+        <p>상단 메뉴를 누르거나 브라우저의 뒤로가기 버튼을 테스트해 보세요.</p>
       </section>
 
       <!-- PROFILE SECTION -->
@@ -193,7 +193,7 @@
         </div>
       </section>
 
-      <!-- PLAYLAB SECTION (다마고치) -->
+      <!-- PLAYLAB SECTION -->
       <section id="playlab" class="section">
         <h2>🐬 돌고래 키우기</h2>
         <hr style="margin: 10px 0;">
@@ -224,17 +224,18 @@
   </main>
 
   <script>
-    // --- 1. 가상 멀티페이지 전환 로직 ---
+    // 페이지 화면 스위칭 핵심 함수
     function renderPage() {
-      // 주소창 해시에서 페이지 id 가져오기 (없으면 기본값 home)
+      // 주소창 뒤의 #아이디 값 추출
       const hash = window.location.hash.replace('#', '') || 'home';
 
-      // 모든 섹션 숨기기
-      document.querySelectorAll('.section').forEach(sec => {
+      // 1. 모든 섹션 클래스에서 active 제거
+      const sections = document.querySelectorAll('.section');
+      sections.forEach(sec => {
         sec.classList.remove('active');
       });
 
-      // 해당 id의 섹션만 보이기
+      // 2. 현재 주소에 해당되는 섹션만 active 추가
       const targetSection = document.getElementById(hash);
       if (targetSection) {
         targetSection.classList.add('active');
@@ -242,7 +243,7 @@
         document.getElementById('home').classList.add('active');
       }
 
-      // 네비게이션 버튼 active 상태 변경
+      // 3. 상단 버튼 active 처리
       document.querySelectorAll('.navbar a').forEach(link => {
         link.classList.remove('active');
         if (link.getAttribute('href') === `#${hash}` || (hash === 'home' && link.getAttribute('href') === '#home')) {
@@ -250,45 +251,38 @@
         }
       });
 
-      // 상단 타이틀 바 변경
+      // 4. 타이틀바 이름 변경
       const titleBar = document.getElementById('window-title');
       if (titleBar) {
         titleBar.innerText = `C:\\WINDOWS\\SYSTEM32\\${hash.toUpperCase()}.EXE`;
       }
     }
 
-    // 주소가 변경되거나(뒤로가기/앞으로가기 포함) 처음 로드될 때 실행
+    // 주소창의 # 값이 달라질 때 실행
     window.addEventListener('hashchange', renderPage);
-    window.addEventListener('DOMContentLoaded', renderPage);
 
-
-    // --- 2. 다마고치 상태 유지 (localStorage) 로직 ---
-    let petData = { hunger: 50 };
-
-    function loadPetData() {
-      const saved = localStorage.getItem('tamagotchiData');
-      if (saved) {
-        petData = JSON.parse(saved);
-      }
-    }
-
-    function updatePetUI() {
-      const hungerDisplay = document.getElementById('hunger-val');
-      if (hungerDisplay) {
-        hungerDisplay.innerText = petData.hunger;
-      }
-      localStorage.setItem('tamagotchiData', JSON.stringify(petData));
-    }
-
+    // 문서가 완전히 로드되면 실행
     window.addEventListener('DOMContentLoaded', () => {
-      loadPetData();
-      updatePetUI();
+      renderPage();
+
+      // 다마고치 로직
+      let petData = { hunger: 50 };
+      const saved = localStorage.getItem('tamagotchiData');
+      if (saved) petData = JSON.parse(saved);
+
+      const updateUI = () => {
+        const hungerDisplay = document.getElementById('hunger-val');
+        if (hungerDisplay) hungerDisplay.innerText = petData.hunger;
+        localStorage.setItem('tamagotchiData', JSON.stringify(petData));
+      };
+
+      updateUI();
 
       const feedBtn = document.getElementById('feed-btn');
       if (feedBtn) {
         feedBtn.addEventListener('click', () => {
           petData.hunger = Math.min(100, petData.hunger + 10);
-          updatePetUI();
+          updateUI();
         });
       }
     });
