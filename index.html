@@ -187,7 +187,7 @@
             outline: none;
         }
 
-        .nav-item:hover {
+        .nav-item:hover, .nav-item.active {
             transform: scale(1.05);
             background-color: var(--soft-blue);
             color: #1d4ed8;
@@ -200,7 +200,7 @@
             border-color: #7f1d1d;
         }
 
-        body.horro-mode .nav-item:hover {
+        body.horro-mode .nav-item:hover, body.horro-mode .nav-item.active {
             background: #450a0a;
             color: #ffffff;
             border-color: #ef4444;
@@ -217,7 +217,9 @@
             z-index: 2;
         }
 
+        /* ★ 페이지 단일 노출 제어 ★ */
         .win-box {
+            display: none !important; /* 기본적으로 모든 윈도우 창 숨김 */
             background: var(--win-bg);
             backdrop-filter: blur(6px);
             border: 2px solid #ffffff;
@@ -227,7 +229,11 @@
             border-radius: 4px;
             overflow: hidden;
             scroll-margin-top: 70px;
-            transition: all 1.5s ease;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .win-box.active {
+            display: block !important; /* active 클래스가 붙은 섹션만 노출 */
         }
 
         .win-header {
@@ -788,7 +794,7 @@
     </header>
 
     <main>
-        <section id="home" class="win-box">
+        <section id="home" class="win-box active">
             <div class="win-header">
                 <div class="win-title">💾 Welcome.exe</div>
                 <div class="win-controls">
@@ -946,6 +952,29 @@
     <script>
         let isHorrorEnabled = false;
 
+        // ★ 페이지 전환 스위칭 핵심 함수 ★
+        function scrollToSection(id) {
+            const sections = document.querySelectorAll('.win-box');
+            sections.forEach(sec => sec.classList.remove('active'));
+
+            const target = document.getElementById(id);
+            if (target) {
+                target.classList.add('active');
+            }
+
+            // URL Hash 업데이트
+            window.location.hash = id;
+
+            // 모바일 메뉴 열려있으면 닫기
+            const nav = document.getElementById('nav-menu');
+            if (nav) nav.classList.remove('active');
+        }
+
+        // 창 닫기 버튼 누르면 홈으로 이동
+        function closeWindow(id) {
+            scrollToSection('home');
+        }
+
         function toggleNavMenu() {
             const nav = document.getElementById('nav-menu');
             nav.classList.toggle('active');
@@ -956,229 +985,90 @@
             popup.classList.toggle('active');
         }
 
-        function toggleHorrorSetting(enabled) {
-            isHorrorEnabled = enabled;
-            if (!enabled && isHorrorMode) {
-                resetToNormal();
+        function toggleHorrorSetting(checked) {
+            isHorrorEnabled = checked;
+            if (!checked) {
+                document.body.classList.remove('horro-mode');
+                document.getElementById('black-door').style.display = 'none';
             }
         }
 
-        function scrollToSection(id) {
-            const element = document.getElementById(id);
-            if (element && element.style.display !== 'none') {
-                element.scrollIntoView({ behavior: 'smooth' });
-            }
-            document.getElementById('nav-menu').classList.remove('active');
+        function handleStartClick() {
+            scrollToSection('home');
         }
 
-        window.onscroll = function() {
-            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-            const scrolled = (winScroll / height) * 100;
-            document.getElementById("progress-bar").style.width = scrolled + "%";
-        };
-
+        // 시계 로직
         function updateClock() {
             const now = new Date();
             let hours = now.getHours();
-            let minutes = now.getMinutes();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12; 
-            minutes = minutes < 10 ? '0' + minutes : minutes;
-            document.getElementById('clock').innerText = hours + ':' + minutes + ' ' + ampm;
+            hours = hours % 12 || 12;
+            document.getElementById('clock').innerText = `${hours}:${minutes} ${ampm}`;
         }
         setInterval(updateClock, 1000);
         updateClock();
 
-        let petStats = { satiety: 20, cleanliness: 20, energy: 20 };
-        let isHorrorMode = false;
-        let restartClickCount = 0;
-        let openWindowsCount = 6;
-
-        const glitchChars = "̷̶̵̶̸̶̵̷̸̷̶̵̸̸̷̷̷̸̷̷01#%&*@!$/\\";
-        function makeGlitchedText(text) {
-            let result = "";
-            for (let i = 0; i < text.length; i++) {
-                if (Math.random() > 0.4) {
-                    result += glitchChars[Math.floor(Math.random() * glitchChars.length)];
-                } else {
-                    result += text[i];
-                }
-            }
-            return result;
-        }
-
-        const horrorBaseDialogs = [
-            "왜 나를 방치했어...",
-            "빛이 닿지 않는 곳으로...",
-            "너도 나와 함께 깊은 곳으로...",
-            "너 뒤에 누군가 서있어...",
-            "눈을 감아도 널 보고 있어..."
-        ];
+        // 펫(돌고래) 상태 로직
+        let petStats = { satiety: 70, cleanliness: 70, energy: 70 };
 
         function updatePetUI() {
             document.getElementById('satiety-fill').style.width = petStats.satiety + '%';
             document.getElementById('cleanliness-fill').style.width = petStats.cleanliness + '%';
             document.getElementById('energy-fill').style.width = petStats.energy + '%';
 
-            if (isHorrorEnabled && petStats.satiety <= 0 && petStats.cleanliness <= 0 && petStats.energy <= 0 && !isHorrorMode) {
-                triggerHorrorMode();
-            }
-        }
-
-        function setPetDialog(text, isGlitch = false) {
             const dialog = document.getElementById('pet-dialog');
-            if (isGlitch) {
-                dialog.innerText = makeGlitchedText(text);
-                dialog.classList.add('glitch-active');
+            if (isHorrorEnabled && (petStats.satiety < 30 || petStats.cleanliness < 30 || petStats.energy < 30)) {
+                document.body.classList.add('horro-mode');
+                document.getElementById('black-door').style.display = 'flex';
+                dialog.innerText = "도와줘... 지쳐가고 있어...";
             } else {
-                dialog.innerText = text;
-                dialog.classList.remove('glitch-active');
+                if (petStats.satiety > 80) dialog.innerText = "배불러요! 🐬";
+                else dialog.innerText = "큐우-! 안녕!";
             }
         }
 
-        function triggerHorrorMode() {
-            isHorrorMode = true;
-            restartClickCount = 0;
-            document.body.classList.add('horro-mode');
-            
-            const char = document.getElementById('dolphin-char');
-            char.innerText = "";
-            char.classList.add('black-square');
-            
-            document.querySelectorAll('.glitch-target').forEach(el => {
-                const orig = el.getAttribute('data-original');
-                el.innerText = makeGlitchedText(orig);
-                el.classList.add('glitch-active');
-            });
-
-            const randomBase = horrorBaseDialogs[Math.floor(Math.random() * horrorBaseDialogs.length)];
-            setPetDialog(randomBase, true);
-
-            updateStartButtonText();
+        function feedPet() {
+            petStats.satiety = Math.min(100, petStats.satiety + 20);
+            updatePetUI();
         }
 
-        function closeWindow(id) {
-            const target = document.getElementById(id);
-            if (target && target.style.display !== 'none') {
-                target.style.display = 'none';
-                openWindowsCount--;
-
-                if (isHorrorMode && openWindowsCount <= 0) {
-                    document.getElementById('black-door').style.display = 'flex';
-                }
-            }
+        function cleanPet() {
+            petStats.cleanliness = Math.min(100, petStats.cleanliness + 20);
+            updatePetUI();
         }
 
+        function sleepPet() {
+            petStats.energy = Math.min(100, petStats.energy + 20);
+            updatePetUI();
+        }
+
+        // 호러 / 이스터에그 BSOD 연출
         function triggerBSOD() {
             document.getElementById('bsod-screen').style.display = 'flex';
         }
 
         function resetFromBSOD() {
             document.getElementById('bsod-screen').style.display = 'none';
-            resetToNormal();
-        }
-
-        function updateStartButtonText() {
-            const startBtn = document.getElementById('start-btn');
-            if (isHorrorMode) {
-                const remaining = 5 - restartClickCount;
-                startBtn.innerHTML = `<span>🔄</span> 재시작 (${remaining}/5)`;
-            } else {
-                startBtn.innerHTML = `<span>☁️</span> 시작 (Start)`;
-            }
-        }
-
-        function handleStartClick() {
-            if (!isHorrorMode) return;
-
-            restartClickCount++;
-            updateStartButtonText();
-
-            if (restartClickCount >= 5) {
-                resetToNormal();
-            } else {
-                const randomBase = horrorBaseDialogs[Math.floor(Math.random() * horrorBaseDialogs.length)];
-                setPetDialog(randomBase, true);
-
-                document.querySelectorAll('.glitch-target').forEach(el => {
-                    const orig = el.getAttribute('data-original');
-                    el.innerText = makeGlitchedText(orig);
-                });
-            }
-        }
-
-        function resetToNormal() {
-            isHorrorMode = false;
-            restartClickCount = 0;
             document.body.classList.remove('horro-mode');
-
             document.getElementById('black-door').style.display = 'none';
-
-            document.querySelectorAll('.win-box').forEach(el => el.style.display = 'block');
-            openWindowsCount = 6;
-
-            const char = document.getElementById('dolphin-char');
-            char.classList.remove('black-square');
-            char.innerText = "🐬";
-
-            petStats = { satiety: 50, cleanliness: 50, energy: 50 };
+            petStats = { satiety: 80, cleanliness: 80, energy: 80 };
             updatePetUI();
-
-            document.querySelectorAll('.glitch-target').forEach(el => {
-                const orig = el.getAttribute('data-original');
-                el.innerHTML = orig;
-                el.classList.remove('glitch-active');
-            });
-
-            setPetDialog("큐우-! 다시 원래대로 돌아왔어!", false);
-            updateStartButtonText();
+            scrollToSection('home');
         }
 
-        function feedPet() {
-            if (isHorrorMode) {
-                const randomBase = horrorBaseDialogs[Math.floor(Math.random() * horrorBaseDialogs.length)];
-                setPetDialog(randomBase, true);
-                return;
-            }
-            petStats.satiety = Math.min(100, petStats.satiety + 25);
+        // 초기 해시 주소 체크
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.replace('#', '') || 'home';
+            scrollToSection(hash);
             updatePetUI();
-            setPetDialog("냠냠! 맛있는 물고기 고마워! 🐟");
-        }
+        });
 
-        function cleanPet() {
-            if (isHorrorMode) {
-                const randomBase = horrorBaseDialogs[Math.floor(Math.random() * horrorBaseDialogs.length)];
-                setPetDialog(randomBase, true);
-                return;
-            }
-            petStats.cleanliness = Math.min(100, petStats.cleanliness + 30);
-            updatePetUI();
-            setPetDialog("뽀득뽀득! 몸이 깨끗해졌어~ 🫧");
-        }
-
-        function sleepPet() {
-            if (isHorrorMode) {
-                const randomBase = horrorBaseDialogs[Math.floor(Math.random() * horrorBaseDialogs.length)];
-                setPetDialog(randomBase, true);
-                return;
-            }
-            petStats.energy = Math.min(100, petStats.energy + 35);
-            updatePetUI();
-            setPetDialog("쿨쿨... 체력이 회복되었어! 💤");
-        }
-
-        setInterval(() => {
-            if (!isHorrorMode && isHorrorEnabled) {
-                petStats.satiety = Math.max(0, petStats.satiety - 5);
-                petStats.cleanliness = Math.max(0, petStats.cleanliness - 5);
-                petStats.energy = Math.max(0, petStats.energy - 5);
-                updatePetUI();
-            }
-        }, 2000);
-
-        updatePetUI();
+        // 뒤로가기/앞으로가기 시 페이지 변경 대응
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.replace('#', '') || 'home';
+            scrollToSection(hash);
+        });
     </script>
 </body>
 </html>
